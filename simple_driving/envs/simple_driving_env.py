@@ -191,3 +191,4 @@ class SimpleDrivingEnv(gym.Env):
 
     def close(self):
         self._p.disconnect()
+
