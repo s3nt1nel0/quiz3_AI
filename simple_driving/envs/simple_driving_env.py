@@ -16,12 +16,16 @@ RENDER_HEIGHT = 720
 RENDER_WIDTH = 960
 
 class QLearningAgent:
-    def __init__(self, env, learning_rate=0.1, discount_factor=0.99, epsilon=0.1):
+    def __init__(self, env, learning_rate=0.1, discount_factor=0.99, epsilon=1.0, epsilon_decay=0.99, prior_q_values=None):
         self.env = env
         self.learning_rate = learning_rate
         self.discount_factor = discount_factor
         self.epsilon = epsilon
-        self.q_table = defaultdict(lambda: np.zeros(env.action_space.n))
+        self.epsilon_decay = epsilon_decay
+        if prior_q_values:
+            self.q_table = prior_q_values
+        else:
+            self.q_table = defaultdict(lambda: np.zeros(env.action_space.n))
 
     def choose_action(self, state):
         if random.uniform(0, 1) < self.epsilon:
@@ -36,6 +40,9 @@ class QLearningAgent:
         td_target = reward + self.discount_factor * max_next_q * (1 - done)
         self.q_table[state][action] += self.learning_rate * (td_target - current_q)
 
+    def decay_epsilon(self):
+        self.epsilon *= self.epsilon_decay
+
     def train(self, num_episodes):
         for episode in range(num_episodes):
             state = self.env.reset()
@@ -45,6 +52,7 @@ class QLearningAgent:
                 next_state, reward, done, _ = self.env.step(action)
                 self.update_q_table(state, action, next_state, reward, done)
                 state = next_state
+            self.decay_epsilon()
 
 class SimpleDrivingEnv(gym.Env):
     metadata = {'render.modes': ['human', 'fp_camera', 'tp_camera']}
