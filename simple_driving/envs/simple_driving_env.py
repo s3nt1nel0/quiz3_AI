@@ -8,9 +8,43 @@ from simple_driving.resources.plane import Plane
 from simple_driving.resources.goal import Goal
 import matplotlib.pyplot as plt
 import time
+import torch
+import random
+
 
 RENDER_HEIGHT = 720
 RENDER_WIDTH = 960
+
+class QLearningAgent:
+    def __init__(self, env, learning_rate=0.1, discount_factor=0.99, epsilon=0.1):
+        self.env = env
+        self.learning_rate = learning_rate
+        self.discount_factor = discount_factor
+        self.epsilon = epsilon
+        self.q_table = defaultdict(lambda: np.zeros(env.action_space.n))
+
+    def choose_action(self, state):
+        if random.uniform(0, 1) < self.epsilon:
+            action = self.env.action_space.sample()
+        else:
+            action = np.argmax(self.q_table[state])
+        return action
+
+    def update_q_table(self, state, action, next_state, reward, done):
+        current_q = self.q_table[state][action]
+        max_next_q = np.max(self.q_table[next_state])
+        td_target = reward + self.discount_factor * max_next_q * (1 - done)
+        self.q_table[state][action] += self.learning_rate * (td_target - current_q)
+
+    def train(self, num_episodes):
+        for episode in range(num_episodes):
+            state = self.env.reset()
+            done = False
+            while not done:
+                action = self.choose_action(state)
+                next_state, reward, done, _ = self.env.step(action)
+                self.update_q_table(state, action, next_state, reward, done)
+                state = next_state
 
 class SimpleDrivingEnv(gym.Env):
     metadata = {'render.modes': ['human', 'fp_camera', 'tp_camera']}
@@ -82,6 +116,7 @@ class SimpleDrivingEnv(gym.Env):
         # Done by reaching goal
         if dist_to_goal < 1.5 and not self.reached_goal:
             #print("reached goal")
+            reward = 50  # Bonus for reaching the goal
             self.done = True
             self.reached_goal = True
 
